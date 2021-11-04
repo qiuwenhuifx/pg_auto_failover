@@ -1191,6 +1191,7 @@ pg_basebackup(const char *pgdata,
 	int argsIndex = 0;
 
 	char command[BUFSIZE];
+	char pgpassword[BUFSIZE] = { 0 };
 
 	log_debug("mkdir -p \"%s\"", replicationSource->backupDir);
 	if (!ensure_empty_dir(replicationSource->backupDir, 0700))
@@ -1206,6 +1207,14 @@ pg_basebackup(const char *pgdata,
 
 	if (!IS_EMPTY_STRING_BUFFER(replicationSource->password))
 	{
+		if (env_exists("PGPASSWORD"))
+		{
+			if (!get_env_copy("PGPASSWORD", pgpassword, sizeof(pgpassword)))
+			{
+				/* errors have already been logged. */
+				return false;
+			}
+		}
 		setenv("PGPASSWORD", replicationSource->password, 1);
 	}
 	setenv("PGAPPNAME", replicationSource->applicationName, 1);
@@ -1273,6 +1282,19 @@ pg_basebackup(const char *pgdata,
 
 	(void) execute_subprogram(&program);
 
+	/* clean-up the environment again */
+	if (!IS_EMPTY_STRING_BUFFER(replicationSource->password))
+	{
+		if (IS_EMPTY_STRING_BUFFER(pgpassword))
+		{
+			unsetenv("PGPASSWORD");
+		}
+		else
+		{
+			setenv("PGPASSWORD", pgpassword, 1);
+		}
+	}
+
 	returnCode = program.returnCode;
 	free_program(&program);
 
@@ -1326,6 +1348,7 @@ pg_rewind(const char *pgdata,
 	int argsIndex = 0;
 
 	char command[BUFSIZE];
+	char pgpassword[BUFSIZE] = { 0 };
 
 	/* call pg_rewind*/
 	path_in_same_directory(pg_ctl, "pg_rewind", pg_rewind);
@@ -1334,6 +1357,14 @@ pg_rewind(const char *pgdata,
 
 	if (!IS_EMPTY_STRING_BUFFER(replicationSource->password))
 	{
+		if (env_exists("PGPASSWORD"))
+		{
+			if (!get_env_copy("PGPASSWORD", pgpassword, sizeof(pgpassword)))
+			{
+				/* errors have already been logged. */
+				return false;
+			}
+		}
 		setenv("PGPASSWORD", replicationSource->password, 1);
 	}
 
@@ -1384,6 +1415,19 @@ pg_rewind(const char *pgdata,
 	}
 
 	(void) execute_subprogram(&program);
+
+	/* clean-up the environment again */
+	if (!IS_EMPTY_STRING_BUFFER(replicationSource->password))
+	{
+		if (IS_EMPTY_STRING_BUFFER(pgpassword))
+		{
+			unsetenv("PGPASSWORD");
+		}
+		else
+		{
+			setenv("PGPASSWORD", pgpassword, 1);
+		}
+	}
 
 	returnCode = program.returnCode;
 	free_program(&program);
